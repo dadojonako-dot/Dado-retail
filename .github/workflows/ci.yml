@@ -7,6 +7,25 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dado_retail_ci
+          POSTGRES_USER: dado
+          POSTGRES_PASSWORD: dado_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dado -d dado_retail_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=dado_retail_ci;Username=dado;Password=dado_ci_password
+      Jwt__Key: ci_only_dado_retail_jwt_key_32_bytes_minimum
+      Jwt__Issuer: DadoRetail
+      Jwt__Audience: DadoRetailClients
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -16,6 +35,12 @@ jobs:
         run: dotnet restore src/DadoRetail.Api/DadoRetail.Api.csproj
       - name: Build API
         run: dotnet build src/DadoRetail.Api/DadoRetail.Api.csproj -c Release --no-restore
+      - name: Install EF tool
+        run: dotnet tool install --global dotnet-ef --version 8.0.8
+      - name: Create migration SQL
+        run: dotnet ef migrations script --idempotent --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj --output migration.sql
+      - name: Apply migrations
+        run: dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
   frontend:
     runs-on: ubuntu-latest
     strategy:
