@@ -19,6 +19,9 @@ public sealed class Payment : Entity
     public PaymentStatus Status { get; private set; } = PaymentStatus.Created;
     public string? ProviderTransactionId { get; private set; }
     public DateTime? ExpiresAtUtc { get; private set; }
+    public void WaitForProvider(string transactionId, DateTime? expiresAtUtc){if(Status!=PaymentStatus.Created)throw new InvalidOperationException();ProviderTransactionId=transactionId;ExpiresAtUtc=expiresAtUtc;Status=PaymentStatus.WaitingPayment;MarkUpdated();}
+    public void MarkPaid(){if(Status is not (PaymentStatus.Created or PaymentStatus.WaitingPayment))throw new InvalidOperationException();Status=PaymentStatus.Paid;MarkUpdated();}
+    public void MarkProviderStatus(PaymentStatus status){if(status is PaymentStatus.Paid){MarkPaid();return;}if(status is not (PaymentStatus.Failed or PaymentStatus.Expired or PaymentStatus.Cancelled))throw new InvalidOperationException();Status=status;MarkUpdated();}
 }
 
 public interface IPaymentProvider
