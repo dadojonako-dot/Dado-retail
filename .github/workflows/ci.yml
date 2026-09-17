@@ -44,10 +44,12 @@ jobs:
         run: dotnet build src/DadoRetail.Api/DadoRetail.Api.csproj -c Release --no-restore
       - name: Install EF tool
         run: dotnet tool install --global dotnet-ef --version 8.0.8
-      - name: Create migration SQL
-        run: dotnet ef migrations script --idempotent --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj --output migration.sql
-      - name: Apply migrations
-        run: dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
+      - name: Verify EF model
+        run: dotnet ef dbcontext info --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
+      - name: Create CI schema from current EF model
+        run: |
+          dotnet ef migrations add CiBootstrap --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj --output-dir Migrations/CiBootstrap
+          dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
       - name: Start Pilot API
         run: |
           dotnet run --project src/DadoRetail.Api/DadoRetail.Api.csproj -c Release --no-build > /tmp/dado-api.log 2>&1 &
