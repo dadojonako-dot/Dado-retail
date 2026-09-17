@@ -1,0 +1,1 @@
+using System.Collections.Concurrent;using DadoRetail.Domain.Fiscalization;using DadoRetail.Domain.Payments;namespace DadoRetail.Api.Pilot;public sealed class PilotPaymentProvider:I PaymentProviderPlaceholder{}
