@@ -4,6 +4,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+permissions:
+  contents: write
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -46,10 +48,23 @@ jobs:
         run: dotnet tool install --global dotnet-ef --version 8.0.8
       - name: Verify EF model
         run: dotnet ef dbcontext info --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
-      - name: Create CI schema from current EF model
+      - name: Persist initial migration when missing
+        if: github.event_name == 'push'
         run: |
-          dotnet ef migrations add CiBootstrap --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj --output-dir Migrations/CiBootstrap
-          dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
+          SNAPSHOT=src/DadoRetail.Infrastructure/Migrations/DadoRetailDbContextModelSnapshot.cs
+          if [ ! -f "$SNAPSHOT" ]; then
+            dotnet ef migrations add InitialCreate \
+              --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj \
+              --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj \
+              --output-dir Migrations
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/DadoRetail.Infrastructure/Migrations
+            git commit -m "Add initial EF Core migration [skip ci]"
+            git push origin HEAD:main
+          fi
+      - name: Apply migrations
+        run: dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
       - name: Start Pilot API
         run: |
           dotnet run --project src/DadoRetail.Api/DadoRetail.Api.csproj -c Release --no-build > /tmp/dado-api.log 2>&1 &
