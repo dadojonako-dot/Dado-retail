@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
 permissions:
-  contents: write
+  contents: read
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -48,22 +48,7 @@ jobs:
         run: dotnet tool install --global dotnet-ef --version 8.0.8
       - name: Verify EF model
         run: dotnet ef dbcontext info --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
-      - name: Persist initial migration when missing
-        if: github.event_name == 'push'
-        run: |
-          SNAPSHOT=src/DadoRetail.Infrastructure/Migrations/DadoRetailDbContextModelSnapshot.cs
-          if [ ! -f "$SNAPSHOT" ]; then
-            dotnet ef migrations add InitialCreate \
-              --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj \
-              --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj \
-              --output-dir Migrations
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src/DadoRetail.Infrastructure/Migrations
-            git commit -m "Add initial EF Core migration [skip ci]"
-            git push origin HEAD:main
-          fi
-      - name: Apply migrations
+      - name: Apply committed migrations
         run: dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
       - name: Start Pilot API
         run: |
