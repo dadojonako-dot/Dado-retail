@@ -19,6 +19,7 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         app: [DadoRetail.Pos, DadoRetail.Admin]
     steps:
@@ -26,11 +27,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: src/${{ matrix.app }}/package-lock.json
-      - name: Install
+      - name: Install dependencies
         working-directory: src/${{ matrix.app }}
-        run: npm ci
+        run: npm install
       - name: Build
         working-directory: src/${{ matrix.app }}
         run: npm run build
