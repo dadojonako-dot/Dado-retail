@@ -22,11 +22,28 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=dado_retail;Username=dado;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${Jwt__Key}
+      Jwt__Issuer: ${Jwt__Issuer:-DadoRetail}
+      Jwt__Audience: ${Jwt__Audience:-DadoRetailClients}
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+
+  migrate:
+    build:
+      context: .
+      dockerfile: src/DadoRetail.Api/Dockerfile.migrations
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=dado_retail;Username=dado;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${Jwt__Key}
+      Jwt__Issuer: ${Jwt__Issuer:-DadoRetail}
+      Jwt__Audience: ${Jwt__Audience:-DadoRetailClients}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   dado_postgres:
