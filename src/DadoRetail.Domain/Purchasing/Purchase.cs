@@ -17,12 +17,14 @@ public sealed class Purchase : Entity
     public DateTime? PostedAtUtc { get; private set; }
     public ICollection<PurchaseItem> Items { get; private set; } = new List<PurchaseItem>();
 
-    public void AddItem(Guid productId, decimal quantity, decimal purchasePrice, DateOnly? expiryDate = null)
+    public PurchaseItem AddItem(Guid productId, decimal quantity, decimal purchasePrice, DateOnly? expiryDate = null)
     {
         if (Status != DocumentStatus.Draft) throw new InvalidOperationException("Posted document cannot be edited.");
         if (quantity <= 0 || purchasePrice < 0) throw new ArgumentOutOfRangeException();
-        Items.Add(new PurchaseItem(Id, productId, quantity, purchasePrice, expiryDate));
+        var item = new PurchaseItem(Id, productId, quantity, purchasePrice, expiryDate);
+        Items.Add(item);
         MarkUpdated();
+        return item;
     }
 
     public void MarkPosted()
