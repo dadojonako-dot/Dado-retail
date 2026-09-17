@@ -16,7 +16,15 @@ public sealed class Sale : Entity
     public SaleStatus Status { get; private set; } = SaleStatus.Draft;
     public ICollection<SaleItem> Items { get; private set; } = new List<SaleItem>();
     public decimal Total => Items.Sum(x => x.Quantity * x.UnitPrice - x.DiscountAmount);
-    public void AddItem(Guid productId, decimal quantity, decimal unitPrice) { if (Status != SaleStatus.Draft) throw new InvalidOperationException("Sale is not editable."); if (quantity <= 0 || unitPrice < 0) throw new ArgumentOutOfRangeException(); Items.Add(new SaleItem(Id, productId, quantity, unitPrice)); MarkUpdated(); }
+    public SaleItem AddItem(Guid productId, decimal quantity, decimal unitPrice)
+    {
+        if (Status != SaleStatus.Draft) throw new InvalidOperationException("Sale is not editable.");
+        if (quantity <= 0 || unitPrice < 0) throw new ArgumentOutOfRangeException();
+        var item = new SaleItem(Id, productId, quantity, unitPrice);
+        Items.Add(item);
+        MarkUpdated();
+        return item;
+    }
     public void AwaitPayment() { if (Status != SaleStatus.Draft) throw new InvalidOperationException("Invalid sale state."); if (Items.Count == 0) throw new InvalidOperationException("Empty sale."); Status = SaleStatus.AwaitingPayment; MarkUpdated(); }
     public void MarkPaid() { if (Status != SaleStatus.AwaitingPayment) throw new InvalidOperationException("Invalid payment transition."); Status = SaleStatus.Paid; MarkUpdated(); }
     public void AwaitFiscalization() { if (Status != SaleStatus.Paid) throw new InvalidOperationException("Sale must be paid."); Status = SaleStatus.AwaitingFiscalization; MarkUpdated(); }
