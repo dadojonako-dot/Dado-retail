@@ -15,22 +15,6 @@ services:
       timeout: 5s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: src/DadoRetail.Api/Dockerfile
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=dado_retail;Username=dado;Password=${POSTGRES_PASSWORD}
-      Jwt__Key: ${Jwt__Key}
-      Jwt__Issuer: ${Jwt__Issuer:-DadoRetail}
-      Jwt__Audience: ${Jwt__Audience:-DadoRetailClients}
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   migrate:
     build:
       context: .
@@ -44,6 +28,28 @@ services:
       postgres:
         condition: service_healthy
     restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/DadoRetail.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=dado_retail;Username=dado;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${Jwt__Key}
+      Jwt__Issuer: ${Jwt__Issuer:-DadoRetail}
+      Jwt__Audience: ${Jwt__Audience:-DadoRetailClients}
+      Pilot__BootstrapEnabled: ${Pilot__BootstrapEnabled:-false}
+      Pilot__AdminUsername: ${Pilot__AdminUsername:-pilotadmin}
+      Pilot__AdminPassword: ${Pilot__AdminPassword:-}
+      Pilot__ProvidersEnabled: ${Pilot__ProvidersEnabled:-false}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   dado_postgres:
