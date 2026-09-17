@@ -8,9 +8,9 @@ json(){ python3 -c "import json,sys; print(json.load(sys.stdin)$1)"; }
 echo "[1/10] health"; curl -fsS "$API/health" >/dev/null
 TOKEN=$(req -d "{\"username\":\"$USER\",\"password\":\"$PASS\"}" "$API/api/v1/auth/login" | json "['accessToken']")
 echo "[2/10] bootstrap ids"
-STORE=$(req "$API/api/v1/stores" | json "[0]['id']")
-WAREHOUSE=$(req "$API/api/v1/warehouses?storeId=$STORE" | json "[0]['id']")
-REGISTER=$(req "$API/api/v1/cash-registers?storeId=$STORE" | json "[0]['id']")
+STORE=$(req "$API/api/v1/organization/stores" | json "[0]['id']")
+WAREHOUSE=$(req "$API/api/v1/organization/warehouses?storeId=$STORE" | json "[0]['id']")
+REGISTER=$(req "$API/api/v1/organization/cash-registers?storeId=$STORE" | json "[0]['id']")
 STAMP=$(date +%s); BARCODE="990000$STAMP"; SKU="PILOT-$STAMP"
 echo "[3/10] product"; PRODUCT=$(req -d "{\"sku\":\"$SKU\",\"name\":\"Pilot Test Product\",\"unitOfMeasure\":\"pcs\",\"barcodes\":[\"$BARCODE\"]}" "$API/api/v1/products" | json "['id']")
 echo "[4/10] price"; req -d "{\"productId\":\"$PRODUCT\",\"storeId\":\"$STORE\",\"amount\":10.00}" "$API/api/v1/prices" >/dev/null
