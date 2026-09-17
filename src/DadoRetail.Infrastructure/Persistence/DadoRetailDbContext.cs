@@ -1,4 +1,11 @@
+using DadoRetail.Domain.Auditing;
+using DadoRetail.Domain.Identity;
+using DadoRetail.Domain.Inventory;
+using DadoRetail.Domain.Organization;
+using DadoRetail.Domain.Payments;
 using DadoRetail.Domain.Products;
+using DadoRetail.Domain.Purchasing;
+using DadoRetail.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 
 namespace DadoRetail.Infrastructure.Persistence;
@@ -7,26 +14,40 @@ public sealed class DadoRetailDbContext(DbContextOptions<DadoRetailDbContext> op
 {
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Barcode> Barcodes => Set<Barcode>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<Store> Stores => Set<Store>();
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<CashRegister> CashRegisters => Set<CashRegister>();
+    public DbSet<StockBalance> StockBalances => Set<StockBalance>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
+    public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<SaleItem> SaleItems => Set<SaleItem>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder m)
     {
-        modelBuilder.Entity<Product>(b =>
-        {
-            b.ToTable("products");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.Sku).HasMaxLength(64).IsRequired();
-            b.HasIndex(x => x.Sku).IsUnique();
-            b.Property(x => x.Name).HasMaxLength(300).IsRequired();
-            b.Property(x => x.UnitOfMeasure).HasMaxLength(32).IsRequired();
-            b.HasMany(x => x.Barcodes).WithOne(x => x.Product).HasForeignKey(x => x.ProductId).OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<Barcode>(b =>
-        {
-            b.ToTable("barcodes");
-            b.HasKey(x => x.Id);
-            b.Property(x => x.Value).HasMaxLength(64).IsRequired();
-            b.HasIndex(x => x.Value).IsUnique();
-        });
+        m.Entity<Product>(b => { b.ToTable("products"); b.HasKey(x=>x.Id); b.Property(x=>x.Sku).HasMaxLength(64).IsRequired(); b.HasIndex(x=>x.Sku).IsUnique(); b.Property(x=>x.Name).HasMaxLength(300).IsRequired(); b.Property(x=>x.UnitOfMeasure).HasMaxLength(32).IsRequired(); b.HasMany(x=>x.Barcodes).WithOne(x=>x.Product).HasForeignKey(x=>x.ProductId).OnDelete(DeleteBehavior.Cascade); });
+        m.Entity<Barcode>(b => { b.ToTable("barcodes"); b.HasKey(x=>x.Id); b.Property(x=>x.Value).HasMaxLength(64).IsRequired(); b.HasIndex(x=>x.Value).IsUnique(); });
+        m.Entity<User>(b => { b.ToTable("users"); b.HasKey(x=>x.Id); b.Property(x=>x.Username).HasMaxLength(100).IsRequired(); b.HasIndex(x=>x.Username).IsUnique(); b.Property(x=>x.PasswordHash).IsRequired(); });
+        m.Entity<Role>(b => { b.ToTable("roles"); b.HasKey(x=>x.Id); b.Property(x=>x.Name).HasMaxLength(100).IsRequired(); b.HasIndex(x=>x.Name).IsUnique(); });
+        m.Entity<Permission>(b => { b.ToTable("permissions"); b.HasKey(x=>x.Id); b.Property(x=>x.Code).HasMaxLength(120).IsRequired(); b.HasIndex(x=>x.Code).IsUnique(); });
+        m.Entity<UserRole>(b => { b.ToTable("user_roles"); b.HasKey(x=>new{x.UserId,x.RoleId}); b.HasOne(x=>x.User).WithMany(x=>x.Roles).HasForeignKey(x=>x.UserId); b.HasOne(x=>x.Role).WithMany(x=>x.Users).HasForeignKey(x=>x.RoleId); });
+        m.Entity<RolePermission>(b => { b.ToTable("role_permissions"); b.HasKey(x=>new{x.RoleId,x.PermissionId}); b.HasOne(x=>x.Role).WithMany(x=>x.Permissions).HasForeignKey(x=>x.RoleId); b.HasOne(x=>x.Permission).WithMany(x=>x.Roles).HasForeignKey(x=>x.PermissionId); });
+        m.Entity<Store>(b => { b.ToTable("stores"); b.HasKey(x=>x.Id); b.HasIndex(x=>x.Code).IsUnique(); });
+        m.Entity<Warehouse>(b => { b.ToTable("warehouses"); b.HasKey(x=>x.Id); b.HasIndex(x=>new{x.StoreId,x.Code}).IsUnique(); });
+        m.Entity<CashRegister>(b => { b.ToTable("cash_registers"); b.HasKey(x=>x.Id); b.HasIndex(x=>new{x.StoreId,x.Code}).IsUnique(); });
+        m.Entity<StockBalance>(b => { b.ToTable("stock_balances"); b.HasKey(x=>x.Id); b.Property(x=>x.Quantity).HasPrecision(18,3); b.HasIndex(x=>new{x.WarehouseId,x.ProductId}).IsUnique(); });
+        m.Entity<StockMovement>(b => { b.ToTable("stock_movements"); b.HasKey(x=>x.Id); b.Property(x=>x.Quantity).HasPrecision(18,3); b.HasIndex(x=>x.DocumentId); });
+        m.Entity<Purchase>(b => { b.ToTable("purchases"); b.HasKey(x=>x.Id); b.HasMany(x=>x.Items).WithOne().HasForeignKey(x=>x.PurchaseId); });
+        m.Entity<PurchaseItem>(b => { b.ToTable("purchase_items"); b.HasKey(x=>x.Id); b.Property(x=>x.Quantity).HasPrecision(18,3); b.Property(x=>x.PurchasePrice).HasPrecision(18,2); });
+        m.Entity<Sale>(b => { b.ToTable("sales"); b.HasKey(x=>x.Id); b.HasMany(x=>x.Items).WithOne().HasForeignKey(x=>x.SaleId); b.Ignore(x=>x.Total); });
+        m.Entity<SaleItem>(b => { b.ToTable("sale_items"); b.HasKey(x=>x.Id); b.Property(x=>x.Quantity).HasPrecision(18,3); b.Property(x=>x.UnitPrice).HasPrecision(18,2); b.Property(x=>x.DiscountAmount).HasPrecision(18,2); });
+        m.Entity<Payment>(b => { b.ToTable("payments"); b.HasKey(x=>x.Id); b.Property(x=>x.Amount).HasPrecision(18,2); b.HasIndex(x=>x.ProviderTransactionId); });
+        m.Entity<AuditLog>(b => { b.ToTable("audit_logs"); b.HasKey(x=>x.Id); b.HasIndex(x=>x.CorrelationId); });
     }
 }
