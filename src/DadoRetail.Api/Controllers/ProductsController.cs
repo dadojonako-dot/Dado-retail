@@ -1,34 +1,7 @@
-using DadoRetail.Api.Security;
-using DadoRetail.Application.Security;
-using DadoRetail.Domain.Products;
-using DadoRetail.Infrastructure.Persistence;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
-namespace DadoRetail.Api.Controllers;
-
-[ApiController, Route("api/v1/products")]
-public sealed class ProductsController(DadoRetailDbContext db) : ControllerBase
-{
-    [HttpGet, HasPermission(Permissions.ProductView)]
-    public async Task<IActionResult> List(CancellationToken ct) => Ok(await db.Products.AsNoTracking().OrderBy(x=>x.Name).Take(500).ToListAsync(ct));
-
-    [HttpGet("by-barcode/{barcode}"), HasPermission(Permissions.ProductView)]
-    public async Task<IActionResult> ByBarcode(string barcode, CancellationToken ct)
-    {
-        var item = await db.Barcodes.AsNoTracking().Where(x=>x.Value==barcode).Select(x=>x.Product).FirstOrDefaultAsync(ct);
-        return item is null ? NotFound() : Ok(item);
-    }
-
-    [HttpPost, HasPermission(Permissions.ProductCreate)]
-    public async Task<IActionResult> Create(CreateProductRequest request, CancellationToken ct)
-    {
-        var product = new Product(request.Sku, request.Name, request.UnitOfMeasure);
-        db.Products.Add(product);
-        foreach (var code in request.Barcodes.Distinct()) db.Barcodes.Add(new Barcode(product.Id, code));
-        await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(ByBarcode), new { barcode = request.Barcodes.FirstOrDefault() ?? product.Sku }, new { product.Id });
-    }
-}
-
-public sealed record CreateProductRequest(string Sku, string Name, string UnitOfMeasure, IReadOnlyCollection<string> Barcodes);
+using DadoRetail.Api.Security;using DadoRetail.Application.Security;using DadoRetail.Domain.Products;using DadoRetail.Infrastructure.Persistence;using Microsoft.AspNetCore.Mvc;using Microsoft.EntityFrameworkCore;namespace DadoRetail.Api.Controllers;
+[ApiController,Route("api/v1/products")]public sealed class ProductsController(DadoRetailDbContext db):ControllerBase{
+[HttpGet,HasPermission(Permissions.ProductView)]public async Task<IActionResult>List(CancellationToken ct)=>Ok(await db.Products.AsNoTracking().Include(x=>x.Barcodes).OrderBy(x=>x.Name).Take(500).Select(x=>new{x.Id,x.Sku,x.Name,x.UnitOfMeasure,x.IsActive,Barcodes=x.Barcodes.Select(b=>b.Value)}).ToListAsync(ct));
+[HttpGet("{id:guid}"),HasPermission(Permissions.ProductView)]public async Task<IActionResult>ById(Guid id,CancellationToken ct){var x=await db.Products.AsNoTracking().Include(p=>p.Barcodes).Where(p=>p.Id==id).Select(p=>new{p.Id,p.Sku,p.Name,p.UnitOfMeasure,p.IsActive,Barcodes=p.Barcodes.Select(b=>b.Value)}).FirstOrDefaultAsync(ct);return x is null?NotFound():Ok(x);}
+[HttpPost,HasPermission(Permissions.ProductCreate)]public async Task<IActionResult>Create(CreateProductRequest r,CancellationToken ct){if(string.IsNullOrWhiteSpace(r.Sku)||string.IsNullOrWhiteSpace(r.Name))return BadRequest();var p=new Product(r.Sku,r.Name,r.UnitOfMeasure);db.Products.Add(p);foreach(var code in r.Barcodes.Where(x=>!string.IsNullOrWhiteSpace(x)).Distinct())db.Barcodes.Add(new Barcode(p.Id,code));await db.SaveChangesAsync(ct);return CreatedAtAction(nameof(ById),new{id=p.Id},new{p.Id});}
+[HttpPost("{id:guid}/barcodes"),HasPermission(Permissions.ProductEdit)]public async Task<IActionResult>AddBarcode(Guid id,AddBarcodeRequest r,CancellationToken ct){if(!await db.Products.AnyAsync(x=>x.Id==id,ct))return NotFound();if(await db.Barcodes.AnyAsync(x=>x.Value==r.Barcode,ct))return Conflict(new{message="Штрихкод уже используется"});db.Barcodes.Add(new Barcode(id,r.Barcode));await db.SaveChangesAsync(ct);return Ok();}}
+public sealed record CreateProductRequest(string Sku,string Name,string UnitOfMeasure,IReadOnlyCollection<string> Barcodes);public sealed record AddBarcodeRequest(string Barcode);
