@@ -26,6 +26,13 @@ jobs:
       Jwt__Key: ci_only_dado_retail_jwt_key_32_bytes_minimum
       Jwt__Issuer: DadoRetail
       Jwt__Audience: DadoRetailClients
+      Pilot__BootstrapEnabled: 'true'
+      Pilot__ProvidersEnabled: 'true'
+      Pilot__AdminUsername: pilotadmin
+      Pilot__AdminPassword: ci_pilot_password_12345
+      PILOT_PASSWORD: ci_pilot_password_12345
+      API_URL: http://localhost:5080
+      ASPNETCORE_URLS: http://localhost:5080
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -41,6 +48,18 @@ jobs:
         run: dotnet ef migrations script --idempotent --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj --output migration.sql
       - name: Apply migrations
         run: dotnet ef database update --project src/DadoRetail.Infrastructure/DadoRetail.Infrastructure.csproj --startup-project src/DadoRetail.Api/DadoRetail.Api.csproj
+      - name: Start Pilot API
+        run: |
+          dotnet run --project src/DadoRetail.Api/DadoRetail.Api.csproj -c Release --no-build > /tmp/dado-api.log 2>&1 &
+          echo $! > /tmp/dado-api.pid
+          for i in {1..30}; do curl -fsS http://localhost:5080/health && exit 0; sleep 2; done
+          cat /tmp/dado-api.log
+          exit 1
+      - name: Pilot end-to-end smoke test
+        run: bash scripts/pilot-smoke.sh
+      - name: Show API log on failure
+        if: failure()
+        run: cat /tmp/dado-api.log || true
   frontend:
     runs-on: ubuntu-latest
     strategy:
